@@ -1,5 +1,8 @@
+from typing import List, Tuple
+import random
+
 import numpy as np
-import matlotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 def create_maze(dim: int) -> np.array:
     """Create maze of side length dim (actual side length 2*dim+1 because of walls) 
@@ -64,7 +67,7 @@ class MazeEnv():
         self.state = self.start_state
         self.grid[tuple(self.state)] = 0.5
 
-    def reset(self) -> tuple[list[int], np.array]:
+    def reset(self) -> Tuple[List[int], np.array]:
         """Resets environment
         
         Returns:
@@ -77,7 +80,7 @@ class MazeEnv():
 
         return self.state, self.grid
 
-    def step(self, action: str) -> tuple[list[int], np.array, int, bool]:
+    def step(self, action: str) -> Tuple[List[int], np.array, int, bool]:
         if action not in self.action_space:
             raise ValueError(f"invalid action: {action}")
         reward = 0

@@ -397,33 +397,33 @@ class DQNAgentCom(DQNBase):
         q = q.reshape(state.shape[0], self.n_xy, self.n_z, self.n_theta, self.n_p)
         return q
 
-    # def getEGreedyActions(self, state, obs, eps):
-    #     """
-    #     Get e-greedy actions
-    #     :param state: gripper holding state
-    #     :param obs: observation
-    #     :param eps: epsilon
-    #     :return: action ids, actions
-    #     """
-    #     with torch.no_grad():
-    #         q = self.forwardNetwork(state, obs, to_cpu=True)
-    #         argmax = torch_utils.argmax4d(q)
-    #         dxy_id = argmax[:, 0]
-    #         dz_id = argmax[:, 1]
-    #         dtheta_id = argmax[:, 2]
-    #         p_id = argmax[:, 3]
+    def getEGreedyActions(self, state, obs, eps):
+        """
+        Get e-greedy actions
+        :param state: gripper holding state
+        :param obs: observation
+        :param eps: epsilon
+        :return: action ids, actions
+        """
+        with torch.no_grad():
+            q = self.forwardNetwork(state, obs, to_cpu=True)
+            argmax = torch_utils.argmax4d(q)
+            dxy_id = argmax[:, 0]
+            dz_id = argmax[:, 1]
+            dtheta_id = argmax[:, 2]
+            p_id = argmax[:, 3]
 
-    #     rand = torch.tensor(np.random.uniform(0, 1, obs.size(0)))
-    #     rand_mask = rand < eps
-    #     rand_p = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_p)
-    #     p_id[rand_mask] = rand_p.long()
-    #     rand_dxy = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_xy)
-    #     dxy_id[rand_mask] = rand_dxy.long()
-    #     rand_dz = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_z)
-    #     dz_id[rand_mask] = rand_dz.long()
-    #     rand_dtheta = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_theta)
-    #     dtheta_id[rand_mask] = rand_dtheta.long()
-    #     return self.decodeActions(p_id, dxy_id, dz_id, dtheta_id)
+        rand = torch.tensor(np.random.uniform(0, 1, obs.size(0)))
+        rand_mask = rand < eps
+        rand_p = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_p)
+        p_id[rand_mask] = rand_p.long()
+        rand_dxy = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_xy)
+        dxy_id[rand_mask] = rand_dxy.long()
+        rand_dz = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_z)
+        dz_id[rand_mask] = rand_dz.long()
+        rand_dtheta = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_theta)
+        dtheta_id[rand_mask] = rand_dtheta.long()
+        return self.decodeActions(p_id, dxy_id, dz_id, dtheta_id)
 
     def get_greedy_action(self, state, obs):
         with torch.no_grad():
