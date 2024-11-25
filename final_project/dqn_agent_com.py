@@ -2,7 +2,21 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from utils import torch_utils
+from utils import parameters
+def argmax4d(tensor):
+    n = tensor.size(0)
+    c1 = tensor.size(1)
+    c2 = tensor.size(2)
+    c3 = tensor.size(3)
+    c4 = tensor.size(4)
+    m = tensor.reshape(n, -1).argmax(1)
 
+    d0 = (m//(c4*c3*c2)).reshape(-1, 1)
+    d1 = ((m%(c4*c3*c2))//(c4*c3)).reshape(-1, 1)
+    d2 = (((m%(c4*c3*c2))%(c4*c3))//c4).reshape(-1, 1)
+    d3 = (((m%(c4*c3*c2))%(c4*c3))%c4).reshape(-1, 1)
+
+    return torch.cat((d0, d1, d2, d3), dim=1)
 class BaseAgent:
     """
     The base RL agent class
@@ -71,8 +85,8 @@ class BaseAgent:
         next_states = []
         next_obs = []
         dones = []
-        step_lefts = []
-        is_experts = []
+        # step_lefts = []
+        # is_experts = []
         for d in batch:
             states.append(d.state)
             images.append(d.obs)
@@ -81,8 +95,8 @@ class BaseAgent:
             next_states.append(d.next_state)
             next_obs.append(d.next_obs)
             dones.append(d.done)
-            step_lefts.append(d.step_left)
-            is_experts.append(d.expert)
+            # step_lefts.append(d.step_left)
+            # is_experts.append(d.expert)
         states_tensor = torch.tensor(np.stack(states)).long().to(self.device)
         obs_tensor = torch.tensor(np.stack(images)).to(self.device)
         if len(obs_tensor.shape) == 3:
@@ -95,10 +109,10 @@ class BaseAgent:
             next_obs_tensor = next_obs_tensor.unsqueeze(1)
         dones_tensor = torch.tensor(np.stack(dones)).int()
         non_final_masks = (dones_tensor ^ 1).float().to(self.device)
-        step_lefts_tensor = torch.tensor(np.stack(step_lefts)).to(self.device)
-        is_experts_tensor = torch.tensor(np.stack(is_experts)).bool().to(self.device)
+        # step_lefts_tensor = torch.tensor(np.stack(step_lefts)).to(self.device)
+        # is_experts_tensor = torch.tensor(np.stack(is_experts)).bool().to(self.device)
 
-        if obs_type is 'pixel':
+        if parameters.obs_type is 'pixel':
             # scale observation from int to float
             obs_tensor = obs_tensor/255*0.4
             next_obs_tensor = next_obs_tensor/255*0.4
@@ -111,11 +125,11 @@ class BaseAgent:
         self.loss_calc_dict['next_states'] = next_states_tensor
         self.loss_calc_dict['next_obs'] = next_obs_tensor
         self.loss_calc_dict['non_final_masks'] = non_final_masks
-        self.loss_calc_dict['step_lefts'] = step_lefts_tensor
-        self.loss_calc_dict['is_experts'] = is_experts_tensor
+        # self.loss_calc_dict['step_lefts'] = step_lefts_tensor
+        # self.loss_calc_dict['is_experts'] = is_experts_tensor
 
         return states_tensor, obs_tensor, action_tensor, rewards_tensor, next_states_tensor, \
-               next_obs_tensor, non_final_masks, step_lefts_tensor, is_experts_tensor
+               next_obs_tensor, non_final_masks#, step_lefts_tensor, is_experts_tensor
 
     def _loadLossCalcDict(self):
         """
@@ -130,9 +144,9 @@ class BaseAgent:
         next_states = self.loss_calc_dict['next_states']
         next_obs = self.loss_calc_dict['next_obs']
         non_final_masks = self.loss_calc_dict['non_final_masks']
-        step_lefts = self.loss_calc_dict['step_lefts']
-        is_experts = self.loss_calc_dict['is_experts']
-        return batch_size, states, obs, action_idx, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts
+        # step_lefts = self.loss_calc_dict['step_lefts']
+        # is_experts = self.loss_calc_dict['is_experts']
+        return batch_size, states, obs, action_idx, rewards, next_states, next_obs, non_final_masks#, step_lefts, is_experts
 
     def train(self):
         """
@@ -383,44 +397,50 @@ class DQNAgentCom(DQNBase):
         q = q.reshape(state.shape[0], self.n_xy, self.n_z, self.n_theta, self.n_p)
         return q
 
-    def getEGreedyActions(self, state, obs, eps):
-        """
-        Get e-greedy actions
-        :param state: gripper holding state
-        :param obs: observation
-        :param eps: epsilon
-        :return: action ids, actions
-        """
+    # def getEGreedyActions(self, state, obs, eps):
+    #     """
+    #     Get e-greedy actions
+    #     :param state: gripper holding state
+    #     :param obs: observation
+    #     :param eps: epsilon
+    #     :return: action ids, actions
+    #     """
+    #     with torch.no_grad():
+    #         q = self.forwardNetwork(state, obs, to_cpu=True)
+    #         argmax = torch_utils.argmax4d(q)
+    #         dxy_id = argmax[:, 0]
+    #         dz_id = argmax[:, 1]
+    #         dtheta_id = argmax[:, 2]
+    #         p_id = argmax[:, 3]
+
+    #     rand = torch.tensor(np.random.uniform(0, 1, obs.size(0)))
+    #     rand_mask = rand < eps
+    #     rand_p = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_p)
+    #     p_id[rand_mask] = rand_p.long()
+    #     rand_dxy = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_xy)
+    #     dxy_id[rand_mask] = rand_dxy.long()
+    #     rand_dz = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_z)
+    #     dz_id[rand_mask] = rand_dz.long()
+    #     rand_dtheta = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_theta)
+    #     dtheta_id[rand_mask] = rand_dtheta.long()
+    #     return self.decodeActions(p_id, dxy_id, dz_id, dtheta_id)
+
+    def get_greedy_action(self, state, obs):
         with torch.no_grad():
             q = self.forwardNetwork(state, obs, to_cpu=True)
-            argmax = torch_utils.argmax4d(q)
-            dxy_id = argmax[:, 0]
-            dz_id = argmax[:, 1]
-            dtheta_id = argmax[:, 2]
-            p_id = argmax[:, 3]
+            argmax = argmax4d(q)
 
-        rand = torch.tensor(np.random.uniform(0, 1, obs.size(0)))
-        rand_mask = rand < eps
-        rand_p = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_p)
-        p_id[rand_mask] = rand_p.long()
-        rand_dxy = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_xy)
-        dxy_id[rand_mask] = rand_dxy.long()
-        rand_dz = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_z)
-        dz_id[rand_mask] = rand_dz.long()
-        rand_dtheta = torch.randint_like(torch.empty(rand_mask.sum()), 0, self.n_theta)
-        dtheta_id[rand_mask] = rand_dtheta.long()
-        return self.decodeActions(p_id, dxy_id, dz_id, dtheta_id)
 
     def calcTDLoss(self):
         """
         Calculate the TD loss
         :return: td loss, td error
         """
-        batch_size, states, obs, action_idx, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
-        p_id = action_idx[:, 0]
-        dxy_id = action_idx[:, 1]
-        dz_id = action_idx[:, 2]
-        dtheta_id = action_idx[:, 3]
+        batch_size, states, obs, action_idx, rewards, next_states, next_obs, non_final_masks = self._loadLossCalcDict()
+        # p_id = action_idx[:, 0]
+        # dxy_id = action_idx[:, 1]
+        # dz_id = action_idx[:, 2]
+        # dtheta_id = action_idx[:, 3]
 
         with torch.no_grad():
             q_all_prime = self.forwardNetwork(next_states, next_obs, target_net=True)

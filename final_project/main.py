@@ -1,13 +1,13 @@
+import collections
 import copy
-import time 
+import os
+import random
+import time
 
 import numpy as np
 import torch
-import tqdm 
+import tqdm
 
-sys.path.append('./')
-sys.path.append('..')
-sys.path.append('../helping_hands_rl_envs')
 from utils import parameters
 from buffer import QLearningBuffer
 from utils.logger import Logger
@@ -15,38 +15,39 @@ from utils.schedules import LinearSchedule
 from dqn_net import CNNCom
 from equivariant_dqn_net import EquivariantCNNCom
 from dqn_agent_com import DQNAgentCom
+from env import MazeEnv
 
-from storage.per_buffer import PrioritizedQLearningBuffer, EXPERT, NORMAL
-from storage.aug_buffer import QLearningBufferAug
-from storage.per_aug_buffer import PrioritizedQLearningBufferAug
-
-from utils.env_wrapper import EnvWrapper
-
-from utils.create_agent import createAgent
 import threading
 
-from utils.torch_utils import ExpertTransition, normalizeTransition, augmentBuffer
+# from utils.torch_utils import ExpertTransition, normalizeTransition, augmentBuffer
+
+Transition = collections.namedtuple('Transition', 'state obs action reward next_state next_obs done')
+
 
 def set_seed(s):
     np.random.seed(s)
+    random.seed(s)
     torch.manual_seed(s)
     torch.cuda.manual_seed(s)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def train_step(agent, replay_buffer, logger, p_beta_schedule):
+
+def train_step(agent, replay_buffer):#, logger):
     batch = replay_buffer.sample(parameters.batch_size)
     loss, td_error = agent.update(batch)
 
-    logger.trainingBookkeeping(loss, td_error.mean().item())
-    logger.num_training_steps += 1
-    if logger.num_training_steps % parameters.target_update_freq == 0:
-        agent.updateTarget()
+    # logger.trainingBookkeeping(loss, td_error.mean().item())
+    # logger.num_training_steps += 1
+    # if logger.num_training_steps % parameters.target_update_freq == 0:
+    #     agent.updateTarget()
+
 
 def preTrainCURLStep(agent, replay_buffer, logger):
     batch = replay_buffer.sample(parameters.batch_size)
     loss = agent.updateCURLOnly(batch)
     logger.trainingBookkeeping(loss, 0)
+
 
 def saveModelAndInfo(logger, agent):
     logger.saveModel(logger.num_steps, env, agent)
@@ -59,6 +60,7 @@ def saveModelAndInfo(logger, agent):
     logger.saveLosses()
     logger.saveTdErrors()
     logger.saveEvalRewards()
+
 
 def evaluate(env, agent, logger):
     state = env.reset()
@@ -86,185 +88,174 @@ def evaluate(env, agent, logger):
                 temp_reward[i] = []
         if not parameters.no_bar:
             eval_bar.update(evaled - eval_bar.n)
-    logger.eval_rewards.append(np.mean(eval_rewards[:parameters.num_eval_episodes]))
+    logger.eval_rewards.append(np.mean(eval_rewards[: parameters.num_eval_episodes]))
     if not parameters.no_bar:
         eval_bar.close()
+
 
 def countParameters(m):
     return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
-def create_agent(model):
-    agent = DQNAgentCom(lr=lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot, n_p=n_p, n_theta=n_theta).
-    if model == 'cnn':
-        net = CNNCom((obs_channel, crop_size, crop_size), n_p=n_p, n_theta=n_theta).to(device)
-    elif model == 'equi':
-        net = EquivariantCNNCom(n_p=n_p, n_theta=n_theta, initialize=initialize).to(device)
+
+def create_agent(model, test=False):
+    agent = DQNAgentCom(
+        lr=parameters.lr,
+        gamma=parameters.gamma,
+        device=parameters.device,
+        dx=parameters.dpos,
+        dy=parameters.dpos,
+        dz=parameters.dpos,
+        dr=parameters.drot,
+        n_p=parameters.n_p,
+        n_theta=parameters.n_theta,
+    )
+    if model == "cnn":
+        net = CNNCom((parameters.obs_channel, parameters.crop_size, parameters.crop_size), n_p=parameters.n_p, n_theta=parameters.n_theta).to(
+            parameters.device
+        )
+    elif model == "equi":
+        net = EquivariantCNNCom(n_p=parameters.n_p, n_theta=parameters.n_theta, initialize=parameters.initialize).to(
+            parameters.device
+        )
     agent.initNetwork(net, initialize_target=not test)
     agent.aug = parameters.aug
     agent.aug_type = parameters.aug_type
-    
+
     return agent
 
-def train(alg, model):
+
+def train(model):
     eval_thread = None
     start_time = time.time()
     set_seed(parameters.seed)
 
     # setup env
-    print('creating envs')
-    # envs = EnvWrapper(num_processes, simulator, env, env_config, planner_config)
-    # eval_envs = EnvWrapper(parameters.num_eval_processes, simulator, env, env_config, planner_config)
-    # TO DO
-
+    print("creating envs")
+    env = MazeEnv(dim=10)
+    
     # setup agent
-    agent = createAgent()
-    eval_agent = createAgent(test=True)
+    agent = create_agent(model)
+    eval_agent = create_agent(model, test=True)
     # .train() is required for equivariant network
-    agent.train()
-    eval_agent.train()
-    # if load_model_pre:
-    #     agent.loadModel(load_model_pre)
+    if model == "equi":
+        agent.train()
+        eval_agent.train()
 
     # logging
-    log_dir = os.path.join(log_pre, '{}_{}'.format(alg, model))
-    if note:
-        log_dir += '_'
-        log_dir += note
+    # log_dir = os.path.join(log_pre, "{}_{}".format(alg, model))
 
-    logger = Logger(log_dir, env, 'train', num_processes, max_train_step, parameters.gamma, log_sub)
-    hyper_parameters['model_shape'] = agent.getModelStr()
-    logger.saveParameters(hyper_parameters)
+    # logger = Logger(
+    #     log_dir, env, "train", parameters.num_processes, parameters.max_train_step, parameters.gamma, parameters.log_sub
+    # )
+    # hyper_parameters['model_shape'] = agent.getModelStr()
+    # logger.saveParameters(hyper_parameters)
 
-    replay_buffer = QLearningBuffer(buffer_size)
-    exploration = LinearSchedule(schedule_timesteps=explore, initial_p=init_eps, final_p=final_eps)
-    p_beta_schedule = LinearSchedule(schedule_timesteps=max_train_step, initial_p=per_beta, final_p=1.0)
+    replay_buffer = QLearningBuffer(parameters.buffer_size)
+    exploration = LinearSchedule(
+        schedule_timesteps=parameters.explore, initial_p=parameters.init_eps, final_p=parameters.final_eps
+    )
 
-    if load_sub:
-        logger.loadCheckPoint(os.path.join(log_dir, load_sub, 'checkpoint'), envs, agent, replay_buffer)
+    # load checkpoint (optional)
+    # if parameters.load_sub:
+    #     logger.loadCheckPoint(
+    #         os.path.join(log_dir, parameters.load_sub, "checkpoint"), env, agent, replay_buffer
+    #     )
 
-    if load_buffer is not None and not load_sub:
-        logger.loadBuffer(replay_buffer, load_buffer, load_n)
+    # load buffer (optional)
+    # if parameters.load_buffer is not None and not parameters.load_sub:  # default None
+    #     logger.loadBuffer(replay_buffer, parameters.load_buffer, load_n)
 
-    if planner_episode > 0 and not load_sub:
-        planner_envs = envs
-        planner_num_process = num_processes
+    # prepopulate replay buffer
+    if parameters.planner_episode > 0 and not parameters.load_sub:
+        planner_env = env
+        planner_num_process = parameters.num_processes  # ?? default 5
         j = 0
-        states, obs = planner_envs.reset()
+        state, obs = planner_env.reset()  # TO DO
         s = 0
         if not parameters.no_bar:
-            planner_bar = tqdm(total=planner_episode)
-        while j < planner_episode:
-            plan_actions = planner_envs.getNextAction()
-            planner_actions_star_idx, planner_actions_star = agent.getActionFromPlan(plan_actions)
-            states_, obs_, rewards, dones = planner_envs.step(planner_actions_star, auto_reset=True)
-            steps_lefts = planner_envs.getStepLeft()
-            for i in range(planner_num_process):
-                transition = ExpertTransition(states[i].numpy(), obs[i].numpy(), planner_actions_star_idx[i].numpy(),
-                                              rewards[i].numpy(), states_[i].numpy(), obs_[i].numpy(), dones[i].numpy(),
-                                              steps_lefts[i].numpy(), np.array(1))
-                if obs_type == 'pixel':
-                    transition = normalizeTransition(transition)
-                replay_buffer.add(transition)
-            states = copy.copy(states_)
-            obs = copy.copy(obs_)
+            planner_bar = tqdm(total=parameters.planner_episode)
+        while j < parameters.planner_episode:
+            action = planner_env.get_egreedy_action() # TO DO
+            next_state, next_obs, reward, done = planner_env.step(action)  # TO DO
+            transition = Transition(state, obs, action, reward, next_state, next_obs, done)  # left out steps_left, np.array(1)
+            replay_buffer.add(transition)
 
-            j += dones.sum().item()
-            s += rewards.sum().item()
+            state = copy.copy(next_state)
+            obs = copy.copy(next_obs)
+
+            j += done
+            s += reward
 
             if not parameters.no_bar:
-                planner_bar.set_description('{:.3f}/{}, AVG: {:.3f}'.format(s, j, float(s)/j if j != 0 else 0))
+                planner_bar.set_description(
+                    "{:.3f}/{}, AVG: {:.3f}".format(s, j, float(s) / j if j != 0 else 0)
+                )
                 planner_bar.update(dones.sum().item())
-        if expert_aug_n > 0:
-            augmentBuffer(replay_buffer, buffer_aug_type, expert_aug_n)
 
-    # pre train
-    if pre_train_step > 0:
-        pbar = tqdm(total=pre_train_step)
-        while len(logger.losses) < pre_train_step:
-            t0 = time.time()
-            train_step(agent, replay_buffer, logger, p_beta_schedule)
-            if logger.num_training_steps % 1000 == 0:
-                logger.saveLossCurve(100)
-                logger.saveTdErrorCurve(100)
-            if not parameters.no_bar:
-                pbar.set_description('loss: {:.3f}, time: {:.2f}'.format(float(logger.getCurrentLoss()), time.time()-t0))
-                pbar.update(len(logger.losses)-pbar.n)
+    # removed pre-train
 
-            if (time.time() - start_time) / 3600 > time_limit:
-                logger.saveCheckPoint(args, envs, agent, replay_buffer)
-                exit(0)
-        pbar.close()
-        logger.saveModel(0, 'pretrain', agent)
+    # if not parameters.no_bar:
+    #     pbar = tqdm(total=parameters.max_train_step)
+    #     pbar.set_description("Episodes:0; Reward:0.0; Explore:0.0; Loss:0.0; Time:0.0")
+    # timer_start = time.time()
 
-    if not parameters.no_bar:
-        pbar = tqdm(total=max_train_step)
-        pbar.set_description('Episodes:0; Reward:0.0; Explore:0.0; Loss:0.0; Time:0.0')
-    timer_start = time.time()
-
-    states, obs = envs.reset()
+    state, obs = env.reset()
 
     # TRAINING
-    while logger.num_training_steps < max_train_step:
+    for t in range(parameters.max_train_step):
 
         # get epsilon
-        if fixed_eps:
-            eps = final_eps
+        if parameters.fixed_eps:
+            eps = parameters.final_eps
         else:
             eps = exploration.value(logger.num_training_steps)
 
-        is_expert = 0
-        actions_star_idx, actions_star = agent.getEGreedyActions(states, obs, eps)  # NEED TO CHANGE
+        # get egreedy actions
+        if np.random.rand() < eps:
+            action = np.random.choice(env.action_space)
+        else:
+            action = agent.get_greedy_action(state, obs, eps) # TO DO
 
-        envs.stepAsync(actions_star, auto_reset=False)
+        # envs.stepAsync(actions_star, auto_reset=False)  # ??
+        next_state, next_obs, reward, done = env.step()
 
-        if len(replay_buffer) >= training_offset:
-            for training_iter in range(training_iters):
-                train_step(agent, replay_buffer, logger, p_beta_schedule)
+        if len(replay_buffer) >= parameters.training_offset:
+            if t % parameters.target_update_freq == 0:
+                train_step(agent, replay_buffer)#, logger)
 
-        # states_, obs_, rewards, dones = envs.stepWait()
-        next_state, reward, done = envs.step() # TO DO
-        # steps_lefts = envs.getStepLeft()
-
-        # done_idxes = torch.nonzero(dones).squeeze(1)
-        # if done_idxes.shape[0] != 0:
         if done:
-            state = envs.reset() # TO DO
-            # reset_states_, reset_obs_ = envs.reset_envs(done_idxes)
-            # for j, idx in enumerate(done_idxes):
-            #     states_[idx] = reset_states_[j]
-            #     obs_[idx] = reset_obs_[j]
+            state, obs = env.reset()
 
-        # if not alg[:2] == 'bc':  # algorithm starts with bc ??
-        #     for i in range(num_processes):
-        #         transition = ExpertTransition(states[i].numpy(), obs[i].numpy(), actions_star_idx[i].numpy(),
-        #                                       rewards[i].numpy(), states_[i].numpy(), obs_[i].numpy(), dones[i].numpy(),
-        #                                       steps_lefts[i].numpy(), np.array(is_expert))
-        #         if obs_type == 'pixel':
-        #             transition = normalizeTransition(transition)
-        #         replay_buffer.add(transition)
-        # logger.stepBookkeeping(rewards.numpy(), steps_lefts.numpy(), dones.numpy())
+        state = copy.copy(next_state)
+        obs = copy.copy(next_obs)
 
-        states = copy.copy(states_)
-        obs = copy.copy(obs_)
+        # if not parameters.no_bar:
+        #     timer_final = time.time()
+        #     description = "Action Step:{}; Reward:{:.03f}; Eval Reward:{:.03f}; Explore:{:.02f}; Loss:{:.03f}; Time:{:.03f}".format(
+        #         logger.num_steps,
+        #         logger.getCurrentAvgReward(100),
+        #         logger.eval_rewards[-1] if len(logger.eval_rewards) > 0 else 0,
+        #         eps,
+        #         float(logger.getCurrentLoss()),
+        #         timer_final - timer_start,
+        #     )
+        #     pbar.set_description(description)
+        #     timer_start = timer_final
+        #     pbar.update(logger.num_training_steps - pbar.n)
+        # logger.num_steps += num_processes
 
-        if (time.time() - start_time)/3600 > time_limit:
-            break
-
-        if not parameters.no_bar:
-            timer_final = time.time()
-            description = 'Action Step:{}; Reward:{:.03f}; Eval Reward:{:.03f}; Explore:{:.02f}; Loss:{:.03f}; Time:{:.03f}'.format(
-                logger.num_steps, logger.getCurrentAvgReward(100), logger.eval_rewards[-1] if len(logger.eval_rewards) > 0 else 0, eps, float(logger.getCurrentLoss()),
-                timer_final - timer_start)
-            pbar.set_description(description)
-            timer_start = timer_final
-            pbar.update(logger.num_training_steps-pbar.n)
-        logger.num_steps += num_processes
-
-        if logger.num_training_steps > 0 and eval_freq > 0 and logger.num_training_steps % eval_freq == 0:
+        # ??
+        if (
+            logger.num_training_steps > 0
+            and eval_freq > 0
+            and logger.num_training_steps % eval_freq == 0
+        ):
             if eval_thread is not None:
                 eval_thread.join()
             eval_agent.copyNetworksFrom(agent)
-            eval_thread = threading.Thread(target=evaluate, args=(eval_envs, eval_agent, logger))
+            eval_thread = threading.Thread(
+                target=evaluate, args=(eval_envs, eval_agent, logger)
+            )
             eval_thread.start()
             # evaluate(eval_envs, agent, logger)
 
@@ -273,12 +264,11 @@ def train(alg, model):
 
     if eval_thread is not None:
         eval_thread.join()
-    saveModelAndInfo(logger, agent)
-    logger.saveCheckPoint(args, envs, agent, replay_buffer)
-    if logger.num_training_steps >= max_train_step:
-        logger.saveResult()
-    # envs.close()
-    # eval_envs.close()
-    print('training finished')
+    # saveModelAndInfo(logger, agent)
+    # logger.saveCheckPoint(args, env, agent, replay_buffer)
+    
+    # if logger.num_training_steps >= parameters.max_train_step:
+    #     logger.saveResult()
+    print("training finished")
     if not parameters.no_bar:
         pbar.close()
