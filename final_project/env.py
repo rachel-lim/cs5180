@@ -47,25 +47,48 @@ def create_maze(dim: int) -> np.array:
     return maze
 
 class MazeEnv():
-    def __init__(self, dim: int) -> None:
-        self.grid = create_maze(dim)
-        self.start_state = [1, 0]
-        self.goal_state = [19, 20]
+    def __init__(self, dim: int, rand_seed=None, grid=None, rotate=0) -> None:
+        if rand_seed:
+            np.random.seed(rand_seed)
+            random.seed(rand_seed)
 
+        if grid is None:
+            self.grid = create_maze(dim)
+            self.start_state = [1, 0]
+            self.goal_state = [2*dim-1, 2*dim]
+        else:
+            self.grid = np.rot90(np.floor(np.copy(grid)), rotate)  # floor to set start cell to 0
+            tmp_grid = np.zeros(self.grid.shape)
+            tmp_grid[1, 0] = 1
+            tmp_grid[len(grid)-2, len(grid)-1] = 2
+            self.start_state = list(np.argwhere(np.rot90(tmp_grid, rotate)==1)[0])
+            self.goal_state = list(np.argwhere(np.rot90(tmp_grid, rotate)==2)[0])
+            
         empty_cells = np.where(self.grid == 0.0)
         self.state_space = [[col, row] for row, col in zip(empty_cells[0], empty_cells[1])]
         self.num_states = len(self.state_space)
 
-        self.actions = {"up": [-1, 0],
-                        "down": [1, 0],
-                        "left": [0, -1],
-                        "right": [0, 1]}
-
+        self.actions = {0: [-1, -1],  # up left
+                        1: [-1, 0],  # up
+                        2: [-1, 1],  # up right
+                        3: [0, -1],
+                        4: [0, 0],
+                        5: [0, 1],
+                        6: [1, -1],
+                        7: [1, 0],
+                        8: [1, 1]}
+        # self.actions = {0: [-1, 0],
+        #                 1: [0, 1],
+        #                 2: [1, 0],
+        #                 3: [0, -1]}
+        
         self.action_space = list(self.actions.keys())
         self.num_actions = len(self.action_space)
 
         self.state = self.start_state
         self.grid[tuple(self.state)] = 0.5
+
+        self.t = 0 
 
     def reset(self) -> Tuple[List[int], np.array]:
         """Resets environment
@@ -76,34 +99,43 @@ class MazeEnv():
         """
         self.state = self.start_state  # reset state to start position
         self.grid[self.grid == 0.5] = 0  # reset visited cells to empty
-        self.grid[tuple(self.state)] = 0.5 # visited start state
+        self.grid[tuple(self.state)] = 0.5 # current location is start state
+        self.t = 0
 
         return self.state, self.grid
 
     def step(self, action: str) -> Tuple[List[int], np.array, int, bool]:
         if action not in self.action_space:
             raise ValueError(f"invalid action: {action}")
-        reward = 0
+        reward = -1
         done = False
         next_state = [self.state[0] + self.actions[action][0], self.state[1] + self.actions[action][1]]
 
+        # if leaving maze, state doesn't change
+        if not 0 <= next_state[0] <= len(self.grid)-1:
+            next_state = self.state
+        if not 0 <= next_state[1] <= len(self.grid)-1:
+            next_state = self.state
+
         # if next state is a wall, state doesn't change
-        if self.grid[tuple(next_state)] == 0:
+        if self.grid[tuple(next_state)] == 1:
             next_state = self.state
-            reward = -1
-        
-        # if leaving maze (left from start), state doesn't change
-        if next_state[1] == -1:
-            next_state = self.state
-            reward = -1
         
         # reach goal
         if next_state == self.goal_state:
-            reward = 1
+            reward = 10
             done = True
 
-        self.grid[tuple(next_state)] = 0.5
+        # if self.t == 100:
+        #     done = True
+
+        # if next_state == self.state:
+        #     reward = -1 # incentivize moving
+        
+        self.grid[tuple(self.state)] = 0  # reset last state
+        self.grid[tuple(next_state)] = 0.5  # set current state
         self.state = next_state
+        self.t += 1
         
         return next_state, self.grid, reward, done
 

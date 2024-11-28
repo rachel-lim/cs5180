@@ -219,9 +219,13 @@ def train(model):
         # envs.stepAsync(actions_star, auto_reset=False)  # ??
         next_state, next_obs, reward, done = env.step()
 
+        # train on batch
         if len(replay_buffer) >= parameters.training_offset:
-            if t % parameters.target_update_freq == 0:
-                train_step(agent, replay_buffer)#, logger)
+            train_step(agent, replay_buffer)#, logger)
+        
+        # update target
+        if t % parameters.target_update_freq == 0:
+            agent.updateTarget()
 
         if done:
             state, obs = env.reset()

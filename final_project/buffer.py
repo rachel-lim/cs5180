@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.random as npr
 from random import sample
 import torch
 from copy import deepcopy
@@ -27,7 +26,7 @@ class QLearningBuffer:
         self._next_idx = (self._next_idx + 1) % self._max_size
 
     def sample(self, batch_size):
-        batch_indexes = npr.choice(self.__len__(), batch_size).tolist()
+        batch_indexes = np.random.choice(self.__len__(), batch_size).tolist()
         batch = [self._storage[idx] for idx in batch_indexes]
         return batch
 

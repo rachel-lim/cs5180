@@ -6,57 +6,50 @@ import torch.nn.functional as F
 class CNNCom(nn.Module):
     def __init__(self):
         super().__init__()
-        # self.n_inv = 3 * n_theta * n_p
-        self.conv = torch.nn.Sequential(
-            # # 128x128
-            # nn.Conv2d(input_shape[0], 32, kernel_size=3, padding=1),
+        self.layers = torch.nn.Sequential(          
+            # # 15x15
+            # nn.Conv2d(1, 32, kernel_size=3, padding=0),
             # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            # # 64x64
-            # nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            # # 13x13
+            # nn.Conv2d(32, 32, kernel_size=3, padding=0),
             # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            # # 32x32
-            # nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            # # 11x11
+            # nn.Conv2d(32, 32, kernel_size=3, padding=0),
             # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            
-            # 15x15
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            # 13x13
-            nn.Conv2d(16, 16, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
-            # 11x11
-            nn.Conv2d(16, 16, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
-            # 9x9
-            nn.Conv2d(16, 16, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
+            # # 9x9
+            # nn.Conv2d(32, 32, kernel_size=3, padding=0),
+            # nn.ReLU(inplace=True),
             # 7x7
-            nn.Conv2d(16, 32, kernel_size=3, padding=0),
+            nn.Conv2d(1, 64, kernel_size=3, padding=0),
             nn.ReLU(inplace=True),
             # 5x5
-            nn.Conv2d(32, 32, kernel_size=3, padding=0),
+            nn.Conv2d(64, 64, kernel_size=3, padding=0),
             nn.ReLU(inplace=True),
-            # nn.MaxPool2d(2),
             # 3x3
-            nn.Conv2d(32, 1, kernel_size=1, padding=0),
+            nn.Conv2d(64, 1, kernel_size=3, padding=1),
         )
-
-        # self.n_p = n_p
-        # self.n_theta = n_theta
-
-        # for m in self.named_modules():
-        #     if isinstance(m[1], nn.Conv2d):
-        #         # nn.init.kaiming_normal_(m[1].weight.data)
-        #         nn.init.xavier_normal_(m[1].weight.data)
-        #     elif isinstance(m[1], nn.BatchNorm2d):
-        #         m[1].weight.data.fill_(1)
-        #         m[1].bias.data.zero_()
+        # self.out_layer= nn.Sequential(nn.Linear(64, 32),
+        #                               nn.Linear(32,4))
 
     def forward(self, x):
-        # batch_size = x.shape[0]
-        q = self.conv(x)
-        # q = q.reshape(batch_size, self.n_inv, 9).permute(0, 2, 1)
-        return q
+        # x = self.layers(x).squeeze()
+        # out = self.out_layer(x)
+
+        # return out
+        return self.layers(x).reshape(-1, 9).squeeze() # return as [[[1,2,3,4,5,6,7,8,9]]]
+
+    @classmethod
+    def custom_load(cls, data):
+        model = cls(*data['args'], **data['kwargs'])
+        model.load_state_dict(data['state_dict'])
+        return model
+
+    def custom_dump(self):
+        return {
+            'args': (2, 9),
+            'kwargs': {
+                'num_layers': 3,
+                'hidden_dim': 1,
+            },
+            'state_dict': self.state_dict(),
+        }
