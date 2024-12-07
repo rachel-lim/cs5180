@@ -8,7 +8,7 @@ Batch = namedtuple(
 )
 
 class ReplayMemory:
-    def __init__(self, max_size, state_size, obs_size, device="cpu):
+    def __init__(self, max_size, state_size, obs_size, device="cpu"):
         """Replay memory implemented as a circular buffer.
 
         Experiences will be removed in a FIFO manner after reaching maximum
