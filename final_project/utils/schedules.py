@@ -1,26 +1,22 @@
 class LinearSchedule(object):
-    def __init__(self, schedule_timesteps, final_p, initial_p=1.0):
-        """Linear interpolation between initial_p and final_p over
-        schedule_timesteps. After this many timesteps pass final_p is
-        returned.
+    """Calculates an epsilon value following a linear schedule
 
-        Parameters
-        ----------
-        schedule_timesteps: int
-            Number of timesteps for which to linearly anneal initial_p
-            to final_p
-        initial_p: float
-            initial output value
-        final_p: float
-            final output value
+    Attributes:
+        start_value: starting value of epsilon
+        end_value: final value of epsilon
+        duration: number of time steps to change epsilon over
+    """
+    def __init__(self, start_value: float, end_value: float, duration: int) -> None:
+        """Initialize LinearSchedule
+
+        Args:
+            start_value: starting value of epsilon
+            end_value: final value of epsilon
+            duration: number of time steps to change epsilon over
         """
-        self.schedule_timesteps = schedule_timesteps
-        self.final_p = final_p
-        self.initial_p = initial_p
+        self.start_value = start_value
+        self.end_value = end_value
+        self.duration = duration
 
-    def value(self, t):
-        """See Schedule.value"""
-        if self.schedule_timesteps == 0:
-            return self.final_p
-        fraction = min(float(t) / self.schedule_timesteps, 1.0)
-        return self.initial_p + fraction * (self.final_p - self.initial_p)
+    def value(self, time):
+        return self.start_value + (self.end_value - self.start_value) * min(1.0, time * 1.0 / self.duration)
