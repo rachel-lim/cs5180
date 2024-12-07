@@ -66,7 +66,10 @@ class ConnectFourEnv():
                 reward = 10
                 done = True
             else:
-                opponent_action = np.random.choice(self.action_space)
+                if np.random.rand() < 0.5:
+                    opponent_action = action
+                else:
+                    opponent_action = np.random.choice(self.action_space)
                 while sum(self.grid[:, opponent_action]==0) == 0:
                     opponent_action = np.random.choice(self.action_space)
                 row = np.where(self.grid[:, opponent_action]==0)[0][-1] # bottom empty row
