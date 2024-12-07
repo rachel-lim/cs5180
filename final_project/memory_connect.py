@@ -4,11 +4,11 @@ import numpy as np
 import torch
 
 Batch = namedtuple(
-    'Batch', ('states', 'observations', 'actions', 'rewards', 'next_states', 'next_observations', 'dones')
+    'Batch', ('observations', 'actions', 'rewards', 'next_observations', 'dones')
 )
 
 class ReplayMemory:
-    def __init__(self, max_size, state_size, obs_size, device="cpu):
+    def __init__(self, max_size, obs_size, device):
         """Replay memory implemented as a circular buffer.
 
         Experiences will be removed in a FIFO manner after reaching maximum
@@ -22,11 +22,11 @@ class ReplayMemory:
         self.device = device
 
         # Preallocating all the required memory, for speed concerns
-        self.states = torch.empty((max_size, state_size)).to(self.device)
+        # self.states = torch.empty((max_size, state_size)).to(self.device)
         self.observations = torch.empty((max_size, 1, *obs_size)).to(self.device)
         self.actions = torch.empty((max_size, 1), dtype=torch.long).to(self.device)
         self.rewards = torch.empty((max_size, 1)).to(self.device)
-        self.next_states = torch.empty((max_size, state_size)).to(self.device)
+        # self.next_states = torch.empty((max_size, state_size)).to(self.device)
         self.next_observations = torch.empty((max_size, 1, *obs_size)).to(self.device)
         self.dones = torch.empty((max_size, 1), dtype=torch.bool).to(self.device)
 
@@ -35,7 +35,7 @@ class ReplayMemory:
         # Indicates number of transitions currently stored in the buffer
         self.size = 0
 
-    def add(self, state, obs, action, reward, next_state, next_obs, done):
+    def add(self, obs, action, reward, next_obs, done):
         """Add a transition to the buffer.
 
         :param state: 1-D np.ndarray of state-features
@@ -44,11 +44,11 @@ class ReplayMemory:
         :param next_state: 1-D np.ndarray of state-features
         :param done: Boolean value indicating the end of an episode
         """
-        self.states[self.idx] = torch.tensor(state, dtype=torch.float32).to(self.device)
+        # self.states[self.idx] = torch.tensor(state, dtype=torch.float32).to(self.device)
         self.observations[self.idx] = torch.tensor(obs, dtype=torch.float32).to(self.device)
         self.actions[self.idx] = torch.tensor(action, dtype=torch.long).to(self.device)
         self.rewards[self.idx] = torch.tensor(reward, dtype=torch.float32).to(self.device)
-        self.next_states[self.idx] = torch.tensor(next_state, dtype=torch.float32).to(self.device)
+        # self.next_states[self.idx] = torch.tensor(next_state, dtype=torch.float32).to(self.device)
         self.next_observations[self.idx] = torch.tensor(next_obs, dtype=torch.float32).to(self.device)
         self.dones[self.idx] = torch.tensor(done, dtype=torch.bool).to(self.device)
         
@@ -71,11 +71,11 @@ class ReplayMemory:
         batch_size = min(batch_size, self.size)
         sample_indices = np.random.choice(self.size, batch_size, replace=False)
         
-        batch = Batch(states=self.states[sample_indices],
+        batch = Batch(#states=self.states[sample_indices],
                       observations=self.observations[sample_indices],
                       actions = self.actions[sample_indices], 
                       rewards=self.rewards[sample_indices], 
-                      next_states=self.next_states[sample_indices], 
+                      # next_states=self.next_states[sample_indices], 
                       next_observations=self.next_observations[sample_indices],
                       dones=self.dones[sample_indices])
 
@@ -88,13 +88,13 @@ class ReplayMemory:
         :param num_steps: Number of steps to populate the replay memory
         """
 
-        state, obs = env.reset()
+        obs = env.reset()
         for _ in range(num_steps):
             action = np.random.choice(env.action_space)
-            next_state, next_obs, reward, done = env.step(action) 
-            self.add(state, obs, action, reward, next_state, next_obs, done)
+            next_obs, reward, done = env.step(action) 
+            self.add(obs, action, reward, next_obs, done)
             if done:
-                state, obs = env.reset()
+                obs = env.reset()
             else:
-                state = next_state
+                # state = next_state
                 obs = next_obs

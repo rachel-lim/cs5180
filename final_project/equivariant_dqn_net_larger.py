@@ -10,18 +10,18 @@ class EquivariantCNNCom(torch.nn.Module):
         # self.n_inv = 3 * n_theta * n_p
         self.r2_act = gspaces.Rot2dOnR2(4)
         self.conv = torch.nn.Sequential(
-            # 13x13
-            nn.R2Conv(nn.FieldType(self.r2_act, 1 * [self.r2_act.trivial_repr]),
-                      nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
-                      kernel_size=3, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]), inplace=True),
-            # 11x11
-            nn.R2Conv(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
-                      nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
-                      kernel_size=3, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]), inplace=True),
+            # # 13x13
+            # nn.R2Conv(nn.FieldType(self.r2_act, 1 * [self.r2_act.trivial_repr]),
+            #           nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
+            #           kernel_size=3, padding=0, initialize=initialize),
+            # nn.ReLU(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]), inplace=True),
+            # # 11x11
+            # nn.R2Conv(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
+            #           nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
+            #           kernel_size=3, padding=0, initialize=initialize),
+            # nn.ReLU(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]), inplace=True),
             # 9x9
-            nn.R2Conv(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
+            nn.R2Conv(nn.FieldType(self.r2_act, 1 * [self.r2_act.trivial_repr]),
                       nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]),
                       kernel_size=3, padding=0, initialize=initialize),
             nn.ReLU(nn.FieldType(self.r2_act, 32 * [self.r2_act.regular_repr]), inplace=True),

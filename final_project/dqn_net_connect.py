@@ -16,16 +16,13 @@ class CNNCom(nn.Module):
             # # 11x11
             # nn.Conv2d(64, 64, kernel_size=3, padding=0),
             # nn.ReLU(inplace=True),
-            # 9x9
-            nn.Conv2d(1, 32, kernel_size=3, padding=0),
+            # 7x7
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             # 7x7
-            nn.Conv2d(32, 32, kernel_size=3, padding=0),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             # 5x5
-            nn.Conv2d(32, 32, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
-            # 3x3
             nn.Conv2d(32, 1, kernel_size=3, padding=1),
         )
 
@@ -34,7 +31,7 @@ class CNNCom(nn.Module):
         # out = self.out_layer(x)
 
         # return out
-        return self.layers(x).reshape(-1, 9).squeeze() # return as [[[1,2,3,4,5,6,7,8,9]]]
+        return self.layers(x).sum(axis=2).squeeze() # return as [[[1,2,3,4,5,6,7,8,9]]]
 
     @classmethod
     def custom_load(cls, data):
