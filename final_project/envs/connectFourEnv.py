@@ -19,7 +19,7 @@ class ConnectFourEnv():
                               [0, 0, 0, 0, 0, 0, 0],
                               [1, 1, 1, 1, 1, 1, 1]])
 
-        self.action_space = list(range(7))
+        self.action_space = list(range(self.grid.shape[1]))
         self.num_actions = len(self.action_space)
 
     def reset(self) -> Tuple[List[int], np.array]:
@@ -36,6 +36,15 @@ class ConnectFourEnv():
                               [0, 0, 0, 0, 0, 0, 0],
                               [0, 0, 0, 0, 0, 0, 0],
                               [1, 1, 1, 1, 1, 1, 1]])
+        # self.grid = np.array([[0., 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        #               [1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
         return self.grid
 
