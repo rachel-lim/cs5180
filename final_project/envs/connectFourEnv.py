@@ -36,15 +36,6 @@ class ConnectFourEnv():
                               [0, 0, 0, 0, 0, 0, 0],
                               [0, 0, 0, 0, 0, 0, 0],
                               [1, 1, 1, 1, 1, 1, 1]])
-        # self.grid = np.array([[0., 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        #               [1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
         return self.grid
 
@@ -79,16 +70,16 @@ class ConnectFourEnv():
                 done = True
             else:
                 opponent_action = -1
-                # for possible_action in self.action_space:
-                #     check_grid = self.grid.copy()
-                #     if sum(check_grid[:, possible_action]==0) > 0: # if action is valid
-                #         row = np.where(check_grid[:, possible_action]==0)[0][-1] # bottom empty row
-                #         check_grid[row, possible_action] = 0.5
-                #         if self._check_win(check_grid == 0.5, diag=False): # if that action would let opponent win
-                #             if np.random.rand() < 0.75:
-                #                 opponent_action = possible_action # 75% chance take correct move
-                #             else:
-                #                 opponent_action = np.random.choice(self.action_space)
+                for possible_action in self.action_space:
+                    check_grid = self.grid.copy()
+                    if sum(check_grid[:, possible_action]==0) > 0: # if action is valid
+                        row = np.where(check_grid[:, possible_action]==0)[0][-1] # bottom empty row
+                        check_grid[row, possible_action] = 0.5
+                        if self._check_win(check_grid == 0.5, diag=False): # if that action would let opponent win
+                            if np.random.rand() < 0.75:
+                                opponent_action = possible_action # 75% chance take correct move
+                            else:
+                                opponent_action = np.random.choice(self.action_space)
                 if opponent_action == -1:
                     opponent_action = np.random.choice(self.action_space)
                 # if np.random.rand() < 0.75:

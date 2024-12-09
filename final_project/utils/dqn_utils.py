@@ -2,12 +2,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-def evaluate(dqn_model, env, eps=0.1, timeout=500, gamma=0.99):
+def evaluate(dqn_model, env, device, eps=0.1, timeout=500, gamma=0.99):
     """Run an evaluation episode.
 
     Args:
         dqn_model: the model to evaluate
         env: the environment to evaluate it in
+        device: torch device
         eps: epsilon value
         timeout: max number of time steps to run an episode for
         gamma: discount factor
@@ -22,7 +23,7 @@ def evaluate(dqn_model, env, eps=0.1, timeout=500, gamma=0.99):
         if np.random.rand() < eps:
             action = np.random.choice(env.action_space)
         else:
-            obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            obs_tensor = torch.tensor(obs.copy(), dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
             q_values = dqn_model(obs_tensor)  # add dim to observation
             max_q_idx = torch.where(q_values == q_values.max())[0]
             action = np.random.choice(max_q_idx.tolist())

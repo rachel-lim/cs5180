@@ -42,10 +42,6 @@ class FourRoomsEnv():
                         6: [1, -1],
                         7: [1, 0],
                         8: [1, 1]}
-        # self.actions = {0: [-1, 0],
-        #                 1: [0, 1],
-        #                 2: [1, 0],
-        #                 3: [0, -1]}
         
         self.action_space = list(self.actions.keys())
         self.num_actions = len(self.action_space)
@@ -62,10 +58,6 @@ class FourRoomsEnv():
             self.grid: reset maze grid
         """
         # choose new start and goal state
-        # self.start_state = self.state_space[np.random.choice(range(self.num_states))]
-        # self.goal_state = [np.random.choice([1, self.grid.shape[0]-2]), np.random.choice([1, self.grid.shape[0]-2])]
-        # while self.goal_state == self.start_state:
-        #     self.goal_state = [np.random.choice([1, self.grid.shape[0]-2]), np.random.choice([1, self.grid.shape[0]-2])]
         pair = self.start_goal_pairs[np.random.choice(range(4))]
         self.start_state = pair[0]
         self.goal_state = pair[1]
@@ -75,7 +67,7 @@ class FourRoomsEnv():
         self.grid[tuple(self.state)] = 0.5 # current location is start state
         self.grid[tuple(self.goal_state)] = 0.75
 
-        return self.state, self.grid
+        return self.grid
 
     def step(self, action: str) -> Tuple[List[int], np.array, int, bool]:
         if action not in self.action_space:
@@ -97,7 +89,7 @@ class FourRoomsEnv():
         self.grid[tuple(next_state)] = 0.5  # set current state
         self.state = next_state
         
-        return next_state, self.grid, reward, done
+        return self.grid, reward, done
 
     def render(self):
         plt.imshow(self.grid)
