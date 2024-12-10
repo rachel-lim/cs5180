@@ -42,7 +42,7 @@ def plot_curves(arr_list: List[np.array], legend_list: List[str], color_list: Li
         # compute the standard error
         arr_err = arr.std(axis=0) / np.sqrt(arr.shape[0])
         # plot the mean
-        h, = ax.plot(range(0, 1000*arr.shape[1], 1000), arr.mean(axis=0), color=color, label=legend)
+        h, = ax.plot(range(0, 1000*arr.shape[1], 1000), arr.mean(axis=0), color=color, alpha = 0.3, label=legend)
         # plot the confidence band
         arr_err = 1.96 * arr_err
         ax.fill_between(range(arr.shape[1]), arr.mean(axis=0) - arr_err, arr.mean(axis=0) + arr_err, alpha=0.3,
